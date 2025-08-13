@@ -438,7 +438,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
                            sub ? "SUB" : "ADD",
                            a, b, c);
 
-      const u64 SINGLE_MANTISSA = 0x000000007fffffff;
+      const u64 SINGLE_MANTISSA = 0x000000001fffffff;
       const u64 a_bits = std::bit_cast<u64>(a);
       const u64 b_bits = std::bit_cast<u64>(b);
       const u64 c_bits = std::bit_cast<u64>(c_round);
