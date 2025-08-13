@@ -369,7 +369,7 @@ void Interpreter::fmulsx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& c = ppc_state.ps[inst.FC];
 
-  const double c_value = Force25Bit(c.PS0AsDouble());
+  const double c_value = Force25Bit(ppc_state.pc, c.PS0AsDouble());
   const FPResult product = NI_mul(ppc_state, a.PS0AsDouble(), c_value);
 
   if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
@@ -518,6 +518,16 @@ void Interpreter::fresx(Interpreter& interpreter, UGeckoInstruction inst)
 
   const auto compute_result = [&ppc_state, inst](double value) {
     const double result = Common::ApproximateReciprocal(value);
+    const double result_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, value);
+
+    if (!DoublesSame(result_verify, result))
+    {
+      DEBUG_LOG_FMT(FLOAT, "({:#010x}) FRES implementations do not agree!"
+                          " 1.0 / {} -> {} vs verify {}",
+                          ppc_state.pc,
+                          value, result, result_verify);
+    }
+
     ppc_state.ps[inst.FD].Fill(result);
     ppc_state.UpdateFPRFSingle(float(result));
   };

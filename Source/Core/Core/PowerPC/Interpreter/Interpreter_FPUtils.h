@@ -10,6 +10,7 @@
 #include "Common/CPUDetect.h"
 #include "Common/CommonTypes.h"
 #include "Common/FloatUtils.h"
+#include "Common/Logging/Log.h"
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/Interpreter/ExceptionUtils.h"
 #include "Core/PowerPC/PowerPC.h"
@@ -88,7 +89,7 @@ inline double ForceDouble(const UReg_FPSCR& fpscr, double d)
   return d;
 }
 
-inline double Force25Bit(double d)
+inline double Force25Bit(u32 pc, double d)
 {
   u64 integral = std::bit_cast<u64>(d);
 
@@ -118,9 +119,17 @@ inline double Force25Bit(double d)
   else
   {
     integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
+
+    if ((integral & ~Common::DOUBLE_SIGN) == Common::DOUBLE_EXP)
+      DEBUG_LOG_FMT(FLOAT, "({:#010x}) C value {} rounded up to infinity", pc, d);
   }
 
   return std::bit_cast<double>(integral);
+}
+
+inline bool DoublesSame(const double a, const double b)
+{
+  return std::bit_cast<u64>(a) == std::bit_cast<u64>(b);
 }
 
 inline double MakeQuiet(double d)
@@ -412,17 +421,33 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
     // For the single precision case, all we currently do is rounding frC properly,
     // then check if the single precision case will work,
     // and if it does, we perform a single precision fma instead.
-    const double c_round = Force25Bit(c);
+    const double c_round = Force25Bit(ppc_state.pc, c);
 
     const float a_float = static_cast<float>(a);
     const float b_float = static_cast<float>(b);
     const float c_float = static_cast<float>(c_round);
 
-    if (static_cast<double>(a_float) == a && static_cast<double>(b_float) == b &&
-        static_cast<double>(c_float) == c_round)
+    if (DoublesSame(static_cast<double>(a_float), a) && DoublesSame(static_cast<double>(b_float), b) &&
+        DoublesSame(static_cast<double>(c_float), c_round))
       result.value = static_cast<double>(std::fma(a_float, c_float, sub ? -b_float : b_float));
     else
+    {
+      DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing 64-bit FM{}S/PS_M{} ({} * {} + {})",
+                           ppc_state.pc,
+                           sub ? "SUB" : "ADD",
+                           sub ? "SUB" : "ADD",
+                           a, b, c);
+
+      const u64 SINGLE_MANTISSA = 0x000000007fffffff;
+      const u64 a_bits = std::bit_cast<u64>(a);
+      const u64 b_bits = std::bit_cast<u64>(b);
+      const u64 c_bits = std::bit_cast<u64>(c_round);
+      if ((a_bits & SINGLE_MANTISSA) == 0 && (c_bits & SINGLE_MANTISSA) == 0 &&
+          (c_bits & SINGLE_MANTISSA) == 0)
+        DEBUG_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
+
       result.value = std::fma(a, c_round, sub ? -b : b);
+    }
   }
 
   if (std::isnan(result.value))

@@ -31,6 +31,7 @@ enum class LogType : int
   DYNA_REC,
   EXPANSIONINTERFACE,
   FILEMON,
+  FLOAT,
   FRAMEDUMP,
   GDB_STUB,
   GPFIFO,

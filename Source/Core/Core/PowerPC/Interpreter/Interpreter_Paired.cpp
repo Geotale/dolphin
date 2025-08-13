@@ -3,12 +3,21 @@
 
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 
+#include <bit>
 #include <cmath>
 
 #include "Common/CommonTypes.h"
 #include "Common/FloatUtils.h"
+#include "Common/Logging/Log.h"
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 #include "Core/PowerPC/PowerPC.h"
+
+// Returns if the argument is properly represented as a float
+inline bool IsFloat(const double d)
+{
+  float f = static_cast<float>(d);
+  return DoublesSame(static_cast<double>(f), d);
+}
 
 // These "binary instructions" do not alter FPSCR.
 void Interpreter::ps_sel(Interpreter& interpreter, UGeckoInstruction inst)
@@ -17,6 +26,18 @@ void Interpreter::ps_sel(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SEL on 64-bit inputs!"
+                         " (({}, {}) >= 0 ? ({}, {}) : ({}, {}))",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(), c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   ppc_state.ps[inst.FD].SetBoth(a.PS0AsDouble() >= -0.0 ? c.PS0AsDouble() : b.PS0AsDouble(),
                                 a.PS1AsDouble() >= -0.0 ? c.PS1AsDouble() : b.PS1AsDouble());
@@ -30,6 +51,14 @@ void Interpreter::ps_neg(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const auto& b = ppc_state.ps[inst.FB];
 
+  if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NEG on 64-bit inputs!"
+                         " -({}, {})",
+                         ppc_state.pc,
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
+
   ppc_state.ps[inst.FD].SetBoth(b.PS0AsU64() ^ (UINT64_C(1) << 63),
                                 b.PS1AsU64() ^ (UINT64_C(1) << 63));
 
@@ -40,7 +69,18 @@ void Interpreter::ps_neg(Interpreter& interpreter, UGeckoInstruction inst)
 void Interpreter::ps_mr(Interpreter& interpreter, UGeckoInstruction inst)
 {
   auto& ppc_state = interpreter.m_ppc_state;
-  ppc_state.ps[inst.FD] = ppc_state.ps[inst.FB];
+  
+  const auto& b = ppc_state.ps[inst.FB];
+
+  if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MR on 64-bit inputs!"
+                         " ({}, {})",
+                         ppc_state.pc,
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
+
+  ppc_state.ps[inst.FD] = b;
 
   if (inst.Rc)
     ppc_state.UpdateCR1();
@@ -50,6 +90,14 @@ void Interpreter::ps_nabs(Interpreter& interpreter, UGeckoInstruction inst)
 {
   auto& ppc_state = interpreter.m_ppc_state;
   const auto& b = ppc_state.ps[inst.FB];
+
+  if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NABS on 64-bit inputs!"
+                         " -|({}, {})|",
+                         ppc_state.pc,
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   ppc_state.ps[inst.FD].SetBoth(b.PS0AsU64() | (UINT64_C(1) << 63),
                                 b.PS1AsU64() | (UINT64_C(1) << 63));
@@ -62,6 +110,14 @@ void Interpreter::ps_abs(Interpreter& interpreter, UGeckoInstruction inst)
 {
   auto& ppc_state = interpreter.m_ppc_state;
   const auto& b = ppc_state.ps[inst.FB];
+
+  if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_ABS on 64-bit inputs!"
+                         " |({}, {})|",
+                         ppc_state.pc,
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   ppc_state.ps[inst.FD].SetBoth(b.PS0AsU64() & ~(UINT64_C(1) << 63),
                                 b.PS1AsU64() & ~(UINT64_C(1) << 63));
@@ -77,6 +133,14 @@ void Interpreter::ps_merge00(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(b.PS0AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE00 on 64-bit inputs!"
+                         " ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), b.PS0AsDouble());
+  }
+
   ppc_state.ps[inst.FD].SetBoth(a.PS0AsDouble(), b.PS0AsDouble());
 
   if (inst.Rc)
@@ -88,6 +152,14 @@ void Interpreter::ps_merge01(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE01 on 64-bit inputs!"
+                         " ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   ppc_state.ps[inst.FD].SetBoth(a.PS0AsDouble(), b.PS1AsDouble());
 
@@ -101,6 +173,14 @@ void Interpreter::ps_merge10(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
+  if (!IsFloat(a.PS1AsDouble()) || !IsFloat(b.PS0AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE10 on 64-bit inputs!"
+                         " ({}, {})",
+                         ppc_state.pc,
+                         a.PS1AsDouble(), b.PS0AsDouble());
+  }
+
   ppc_state.ps[inst.FD].SetBoth(a.PS1AsDouble(), b.PS0AsDouble());
 
   if (inst.Rc)
@@ -112,6 +192,14 @@ void Interpreter::ps_merge11(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
+
+  if (!IsFloat(a.PS1AsDouble()) || !IsFloat(b.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE11 on 64-bit inputs!"
+                         " ({}, {})",
+                         ppc_state.pc,
+                         a.PS1AsDouble(), b.PS1AsDouble());
+  }
 
   ppc_state.ps[inst.FD].SetBoth(a.PS1AsDouble(), b.PS1AsDouble());
 
@@ -145,6 +233,14 @@ void Interpreter::ps_res(Interpreter& interpreter, UGeckoInstruction inst)
   const double a = ppc_state.ps[inst.FB].PS0AsDouble();
   const double b = ppc_state.ps[inst.FB].PS1AsDouble();
 
+  if (!IsFloat(a) || !IsFloat(b))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RES on 64-bit inputs!"
+                         " 1.0 / ({}, {})",
+                         ppc_state.pc,
+                         a, b);
+  }
+
   if (a == 0.0 || b == 0.0)
   {
     SetFPException(ppc_state, FPSCR_ZX);
@@ -160,6 +256,19 @@ void Interpreter::ps_res(Interpreter& interpreter, UGeckoInstruction inst)
   const double ps0 = Common::ApproximateReciprocal(a);
   const double ps1 = Common::ApproximateReciprocal(b);
 
+  const double ps0_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, a);
+  const double ps1_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, b);
+
+  if (!DoublesSame(ps0_verify, ps0) || !DoublesSame(ps1_verify, ps1))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({#:010x}) PS_RES implementations do not agree!"
+                         " 1.0 / ({}, {}) -> ({}, {}) vs verify ({}, {})",
+                         ppc_state.pc,
+                         a, b,
+                         ps0, ps1,
+                         ps0_verify, ps1_verify);
+  }
+
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(float(ps0));
 
@@ -172,6 +281,14 @@ void Interpreter::ps_rsqrte(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const double ps0 = ppc_state.ps[inst.FB].PS0AsDouble();
   const double ps1 = ppc_state.ps[inst.FB].PS1AsDouble();
+
+  if (!IsFloat(ps0) || !IsFloat(ps1))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RSQRTE on 64-bit inputs!"
+                         " 1.0 / sqrt({}, {})",
+                         ppc_state.pc,
+                         ps0, ps1);
+  }
 
   if (ps0 == 0.0 || ps1 == 0.0)
   {
@@ -243,8 +360,8 @@ void Interpreter::ps_mul(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& c = ppc_state.ps[inst.FC];
 
-  const double c0 = Force25Bit(c.PS0AsDouble());
-  const double c1 = Force25Bit(c.PS1AsDouble());
+  const double c0 = Force25Bit(ppc_state.pc, c.PS0AsDouble());
+  const double c1 = Force25Bit(ppc_state.pc, c.PS1AsDouble());
 
   const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c0).value);
   const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c1).value);
@@ -262,6 +379,18 @@ void Interpreter::ps_msub(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MSUB on 64-bit inputs!"
+                         " ({}, {}) * ({}, {}) - ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(), c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   const float ps0 = ForceSingle(
       ppc_state.fpscr,
@@ -284,6 +413,18 @@ void Interpreter::ps_madd(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
 
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADD on 64-bit inputs!"
+                         " ({}, {}) * ({}, {}) + ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(), c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
+
   const float ps0 = ForceSingle(
       ppc_state.fpscr,
       NI_madd<true>(ppc_state, a.PS0AsDouble(), c.PS0AsDouble(), b.PS0AsDouble()).value);
@@ -304,6 +445,18 @@ void Interpreter::ps_nmsub(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMSUB on 64-bit inputs!"
+                         " -({}, {}) * ({}, {}) + ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(), c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   const float tmp0 = ForceSingle(
       ppc_state.fpscr,
@@ -328,6 +481,18 @@ void Interpreter::ps_nmadd(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMADD on 64-bit inputs!"
+                         " -({}, {}) * ({}, {}) - ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(), c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   const float tmp0 = ForceSingle(
       ppc_state.fpscr,
@@ -357,6 +522,16 @@ void Interpreter::ps_sum0(Interpreter& interpreter, UGeckoInstruction inst)
       ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
   const float ps1 = ForceSingle(ppc_state.fpscr, c.PS1AsDouble());
 
+  if (!IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
+                         " ({} + {}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(),
+                         b.PS1AsDouble(), c.PS1AsDouble());
+  }
+
+
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
 
@@ -375,6 +550,15 @@ void Interpreter::ps_sum1(Interpreter& interpreter, UGeckoInstruction inst)
   const float ps1 =
       ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
 
+  if (!IsFloat(c.PS0AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
+                         " ({}, {} + {})",
+                         ppc_state.pc,
+                         c.PS0AsDouble(), a.PS0AsDouble(), b.PS1AsDouble());
+  }
+
+
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps1);
 
@@ -388,7 +572,7 @@ void Interpreter::ps_muls0(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& c = ppc_state.ps[inst.FC];
 
-  const double c0 = Force25Bit(c.PS0AsDouble());
+  const double c0 = Force25Bit(ppc_state.pc, c.PS0AsDouble());
   const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c0).value);
   const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c0).value);
 
@@ -405,7 +589,7 @@ void Interpreter::ps_muls1(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& c = ppc_state.ps[inst.FC];
 
-  const double c1 = Force25Bit(c.PS1AsDouble());
+  const double c1 = Force25Bit(ppc_state.pc, c.PS1AsDouble());
   const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c1).value);
   const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c1).value);
 
@@ -422,6 +606,18 @@ void Interpreter::ps_madds0(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS0AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS0 on 64-bit inputs!"
+                         " ({}, {}) * {} + ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS0AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   const float ps0 = ForceSingle(
       ppc_state.fpscr,
@@ -443,6 +639,18 @@ void Interpreter::ps_madds1(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
   const auto& c = ppc_state.ps[inst.FC];
+
+  if (!IsFloat(a.PS0AsDouble()) || !IsFloat(a.PS1AsDouble()) ||
+      !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
+      !IsFloat(c.PS1AsDouble()))
+  {
+    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS1 on 64-bit inputs!"
+                         " ({}, {}) * {} + ({}, {})",
+                         ppc_state.pc,
+                         a.PS0AsDouble(), a.PS1AsDouble(),
+                         c.PS1AsDouble(),
+                         b.PS0AsDouble(), b.PS1AsDouble());
+  }
 
   const float ps0 = ForceSingle(
       ppc_state.fpscr,

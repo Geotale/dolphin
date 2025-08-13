@@ -388,8 +388,7 @@ bool CachedInterpreter::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
       {
         const InterpretOperands operands = {interpreter, Interpreter::GetInterpreterOp(op.inst),
                                             js.compilerPC, op.inst};
-        Write(op.canEndBlock ? CallbackCast(Interpret<true>) : CallbackCast(Interpret<false>),
-              operands);
+        Write(CallbackCast(Interpret<true>), operands);
       }
 
       if (op.branchIsIdleLoop)

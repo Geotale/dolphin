@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "Common/CommonTypes.h"
+#include "Core/PowerPC/Gekko.h"
 
 namespace Common
 {
@@ -97,5 +98,6 @@ extern const std::array<BaseAndDec, 32> fres_expected;
 // PowerPC approximation algorithms
 double ApproximateReciprocalSquareRoot(double val);
 double ApproximateReciprocal(double val);
+double ApproximateReciprocalVerify(const UReg_FPSCR& fpscr, double val);
 
 }  // namespace Common

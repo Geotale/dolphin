@@ -106,7 +106,7 @@ std::size_t CachedInterpreter::Disassemble(const JitBlock& block, std::ostream& 
       LOOKUP_KV(CachedInterpreter::StartProfiledBlock),
       LOOKUP_KV(CachedInterpreter::EndBlock<false>),
       LOOKUP_KV(CachedInterpreter::EndBlock<true>),
-      LOOKUP_KV(CachedInterpreter::Interpret<false>),
+      // LOOKUP_KV(CachedInterpreter::Interpret<false>),
       LOOKUP_KV(CachedInterpreter::Interpret<true>),
       LOOKUP_KV(CachedInterpreter::InterpretAndCheckExceptions<false>),
       LOOKUP_KV(CachedInterpreter::InterpretAndCheckExceptions<true>),
