@@ -121,6 +121,8 @@ inline double Force25Bit(double d)
     // TODO: This needs special handling for when the integral is the last value before an infinity
     integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
   }
+  // We actually do NOT want to mask off the bits in this alternate case, because it might
+  // turn some NaNs into infinities, which is not done on the actual CPU.
 
   return std::bit_cast<double>(integral);
 }
