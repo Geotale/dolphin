@@ -522,7 +522,7 @@ void Interpreter::fresx(Interpreter& interpreter, UGeckoInstruction inst)
 
     if (!DoublesSame(result_verify, result))
     {
-      DEBUG_LOG_FMT(FLOAT, "({:#010x}) FRES implementations do not agree!"
+      INFO_LOG_FMT(FLOAT, "({:#010x}) FRES implementations do not agree!"
                           " 1.0 / {} -> {} vs verify {}",
                           ppc_state.pc,
                           value, result, result_verify);

@@ -121,7 +121,7 @@ inline double Force25Bit(u32 pc, double d)
     integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
 
     if ((integral & ~Common::DOUBLE_SIGN) == Common::DOUBLE_EXP)
-      DEBUG_LOG_FMT(FLOAT, "({:#010x}) C value {} rounded up to infinity", pc, d);
+      INFO_LOG_FMT(FLOAT, "({:#010x}) C value {} rounded up to infinity", pc, d);
   }
 
   return std::bit_cast<double>(integral);
@@ -432,7 +432,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
       result.value = static_cast<double>(std::fma(a_float, c_float, sub ? -b_float : b_float));
     else
     {
-      DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing 64-bit FM{}S/PS_M{} ({} * {} + {})",
+      INFO_LOG_FMT(FLOAT, "({:#010x}) Performing 64-bit FM{}S/PS_M{} ({} * {} + {})",
                            ppc_state.pc,
                            sub ? "SUB" : "ADD",
                            sub ? "SUB" : "ADD",
@@ -444,7 +444,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
       const u64 c_bits = std::bit_cast<u64>(c_round);
       if ((a_bits & SINGLE_MANTISSA) == 0 && (c_bits & SINGLE_MANTISSA) == 0 &&
           (c_bits & SINGLE_MANTISSA) == 0)
-        DEBUG_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
+        INFO_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
 
       result.value = std::fma(a, c_round, sub ? -b : b);
     }

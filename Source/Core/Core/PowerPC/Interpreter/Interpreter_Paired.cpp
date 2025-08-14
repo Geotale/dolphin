@@ -31,7 +31,7 @@ void Interpreter::ps_sel(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SEL on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SEL on 64-bit inputs!"
                          " (({}, {}) >= 0 ? ({}, {}) : ({}, {}))",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -53,7 +53,7 @@ void Interpreter::ps_neg(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NEG on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NEG on 64-bit inputs!"
                          " -({}, {})",
                          ppc_state.pc,
                          b.PS0AsDouble(), b.PS1AsDouble());
@@ -74,7 +74,7 @@ void Interpreter::ps_mr(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MR on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MR on 64-bit inputs!"
                          " ({}, {})",
                          ppc_state.pc,
                          b.PS0AsDouble(), b.PS1AsDouble());
@@ -93,7 +93,7 @@ void Interpreter::ps_nabs(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NABS on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_NABS on 64-bit inputs!"
                          " -|({}, {})|",
                          ppc_state.pc,
                          b.PS0AsDouble(), b.PS1AsDouble());
@@ -113,7 +113,7 @@ void Interpreter::ps_abs(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_ABS on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_ABS on 64-bit inputs!"
                          " |({}, {})|",
                          ppc_state.pc,
                          b.PS0AsDouble(), b.PS1AsDouble());
@@ -135,7 +135,7 @@ void Interpreter::ps_merge00(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(a.PS0AsDouble()) || !IsFloat(b.PS0AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE00 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE00 on 64-bit inputs!"
                          " ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), b.PS0AsDouble());
@@ -155,7 +155,7 @@ void Interpreter::ps_merge01(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(a.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE01 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE01 on 64-bit inputs!"
                          " ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), b.PS1AsDouble());
@@ -175,7 +175,7 @@ void Interpreter::ps_merge10(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(a.PS1AsDouble()) || !IsFloat(b.PS0AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE10 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE10 on 64-bit inputs!"
                          " ({}, {})",
                          ppc_state.pc,
                          a.PS1AsDouble(), b.PS0AsDouble());
@@ -195,7 +195,7 @@ void Interpreter::ps_merge11(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(a.PS1AsDouble()) || !IsFloat(b.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE11 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_MERGE11 on 64-bit inputs!"
                          " ({}, {})",
                          ppc_state.pc,
                          a.PS1AsDouble(), b.PS1AsDouble());
@@ -235,7 +235,7 @@ void Interpreter::ps_res(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(a) || !IsFloat(b))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RES on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RES on 64-bit inputs!"
                          " 1.0 / ({}, {})",
                          ppc_state.pc,
                          a, b);
@@ -261,7 +261,7 @@ void Interpreter::ps_res(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!DoublesSame(ps0_verify, ps0) || !DoublesSame(ps1_verify, ps1))
   {
-    DEBUG_LOG_FMT(FLOAT, "({#:010x}) PS_RES implementations do not agree!"
+    INFO_LOG_FMT(FLOAT, "({#:010x}) PS_RES implementations do not agree!"
                          " 1.0 / ({}, {}) -> ({}, {}) vs verify ({}, {})",
                          ppc_state.pc,
                          a, b,
@@ -284,7 +284,7 @@ void Interpreter::ps_rsqrte(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(ps0) || !IsFloat(ps1))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RSQRTE on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_RSQRTE on 64-bit inputs!"
                          " 1.0 / sqrt({}, {})",
                          ppc_state.pc,
                          ps0, ps1);
@@ -384,7 +384,7 @@ void Interpreter::ps_msub(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MSUB on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MSUB on 64-bit inputs!"
                          " ({}, {}) * ({}, {}) - ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -417,7 +417,7 @@ void Interpreter::ps_madd(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADD on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADD on 64-bit inputs!"
                          " ({}, {}) * ({}, {}) + ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -450,7 +450,7 @@ void Interpreter::ps_nmsub(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMSUB on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMSUB on 64-bit inputs!"
                          " -({}, {}) * ({}, {}) + ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -486,7 +486,7 @@ void Interpreter::ps_nmadd(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()) || !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMADD on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_NMADD on 64-bit inputs!"
                          " -({}, {}) * ({}, {}) - ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -524,7 +524,7 @@ void Interpreter::ps_sum0(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
                          " ({} + {}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(),
@@ -552,7 +552,7 @@ void Interpreter::ps_sum1(Interpreter& interpreter, UGeckoInstruction inst)
 
   if (!IsFloat(c.PS0AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing paired move operation PS_SUM0 on 64-bit inputs!"
                          " ({}, {} + {})",
                          ppc_state.pc,
                          c.PS0AsDouble(), a.PS0AsDouble(), b.PS1AsDouble());
@@ -611,7 +611,7 @@ void Interpreter::ps_madds0(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS0AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS0 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS0 on 64-bit inputs!"
                          " ({}, {}) * {} + ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
@@ -644,7 +644,7 @@ void Interpreter::ps_madds1(Interpreter& interpreter, UGeckoInstruction inst)
       !IsFloat(b.PS0AsDouble()) || !IsFloat(b.PS1AsDouble()) ||
       !IsFloat(c.PS1AsDouble()))
   {
-    DEBUG_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS1 on 64-bit inputs!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Performing PS_MADDS1 on 64-bit inputs!"
                          " ({}, {}) * {} + ({}, {})",
                          ppc_state.pc,
                          a.PS0AsDouble(), a.PS1AsDouble(),
