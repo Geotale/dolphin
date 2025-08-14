@@ -442,7 +442,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
       const u64 a_bits = std::bit_cast<u64>(a);
       const u64 b_bits = std::bit_cast<u64>(b);
       const u64 c_bits = std::bit_cast<u64>(c_round);
-      if ((a_bits & SINGLE_MANTISSA) == 0 && (c_bits & SINGLE_MANTISSA) == 0 &&
+      if ((a_bits & SINGLE_MANTISSA) == 0 && (b_bits & SINGLE_MANTISSA) == 0 &&
           (c_bits & SINGLE_MANTISSA) == 0)
         INFO_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
 
