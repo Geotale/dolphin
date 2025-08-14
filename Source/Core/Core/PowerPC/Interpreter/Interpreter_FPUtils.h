@@ -115,8 +115,10 @@ inline double Force25Bit(double d)
     // Round using these shifted values
     integral = (integral & keep_mask) + (integral & round);
   }
-  else
+  else if (exponent != Common::DOUBLE_EXP)
   {
+    // Don't perform this on infinities or NaNs
+    // TODO: This needs special handling for when the integral is the last value before an infinity
     integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
   }
 
