@@ -263,8 +263,8 @@ void CommonAsmRoutines::GenFres()
   POP(RSCRATCH_EXTRA);
 
   OR(64, R(RSCRATCH), R(RSCRATCH_EXTRA));  // vali |= (s64)((u64)(fres_expected_base[i / 1024] +
-                                            // (fres_expected_dec[i / 1024] * (i % 1024)) / 2))
-                                            // << 29
+                                           // (fres_expected_dec[i / 1024] * (i % 1024)) / 2))
+                                           // << 29
   MOVQ_xmm(XMM0, R(RSCRATCH));
   RET();
 
