@@ -255,18 +255,17 @@ void CommonAsmRoutines::GenFres()
   IMUL(32, RSCRATCH,
        MComplex(RSCRATCH_EXTRA, RSCRATCH2, SCALE_8, offsetof(Common::BaseAndDec, m_dec)));
 
-  MOV(32, R(RSCRATCH2),
+  ADD(32, R(RSCRATCH),
       MComplex(RSCRATCH_EXTRA, RSCRATCH2, SCALE_8, offsetof(Common::BaseAndDec, m_base)));
-  ADD(32, R(RSCRATCH2), R(RSCRATCH));
-  SHR(32, R(RSCRATCH2), Imm8(1));
-  SHL(64, R(RSCRATCH2), Imm8(29));
+  SHR(32, R(RSCRATCH), Imm8(1));
+  SHL(64, R(RSCRATCH), Imm8(29));
 
   POP(RSCRATCH_EXTRA);
 
-  OR(64, R(RSCRATCH2), R(RSCRATCH_EXTRA));  // vali |= (s64)((u64)(fres_expected_base[i / 1024] +
+  OR(64, R(RSCRATCH), R(RSCRATCH_EXTRA));  // vali |= (s64)((u64)(fres_expected_base[i / 1024] +
                                             // (fres_expected_dec[i / 1024] * (i % 1024)) / 2))
                                             // << 29
-  MOVQ_xmm(XMM0, R(RSCRATCH2));
+  MOVQ_xmm(XMM0, R(RSCRATCH));
   RET();
 
   // Exception flags for zero input.
