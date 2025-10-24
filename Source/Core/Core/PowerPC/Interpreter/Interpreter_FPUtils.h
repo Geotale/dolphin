@@ -10,7 +10,6 @@
 #include "Common/CPUDetect.h"
 #include "Common/CommonTypes.h"
 #include "Common/FloatUtils.h"
-#include "Common/Logging/Log.h"
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/Interpreter/ExceptionUtils.h"
 #include "Core/PowerPC/PowerPC.h"
@@ -89,7 +88,7 @@ inline double ForceDouble(const UReg_FPSCR& fpscr, double d)
   return d;
 }
 
-inline double Force25Bit(u32 pc, double d)
+inline double Force25Bit(double d)
 {
   u64 integral = std::bit_cast<u64>(d);
 
@@ -119,29 +118,11 @@ inline double Force25Bit(u32 pc, double d)
   else
   {
     integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
-
-    if ((integral & ~Common::DOUBLE_SIGN) == Common::DOUBLE_EXP)
-      INFO_LOG_FMT(FLOAT, "({:#010x}) C value {} rounded up to infinity", pc, d);
   }
 
   return std::bit_cast<double>(integral);
 }
 
-<<<<<<< HEAD
-inline bool DoublesSame(const double a, const double b)
-{
-  return std::bit_cast<u64>(a) == std::bit_cast<u64>(b);
-}
-
-inline double MakeQuiet(double d)
-{
-  const u64 integral = std::bit_cast<u64>(d) | Common::DOUBLE_QBIT;
-
-  return std::bit_cast<double>(integral);
-}
-
-=======
->>>>>>> upstream/master
 // these functions allow globally modify operations behaviour
 // also, these may be used to set flags like FR, FI, OX, UX
 
@@ -321,18 +302,11 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //    double precision floats.
   // 4. CPUs, unsurprisingly, don't tend to support 64-bit float inputs to an operation with a
   //    32-bit result.
-<<<<<<< HEAD
-  //    One quirk of PowerPC is that instead of just not caring about the 32-bit precision
-  //    mantissas, it includes them and *only rounds once* to 32-bit. This means that you can have
-  //    double precision inputs that round differently than if you do a double precision FMA then
-  //    round the result to 32-bit.
-=======
   //    One quirk of PowerPC is that instead of just not caring about handling the precision
   //    in the registers of the operands of single precision instructions, it instead
   //    takes into account that extra precision and *only rounds once* to 32-bit.
   //    This means that you can have double precision inputs such that the result rounds
   //    differently than if you did a double precision FMA and rounded the result to 32-bit.
->>>>>>> upstream/master
   //    - What makes FMA so special here is that it's the only basic operation which, upon being
   //      converted to a 64-bit operation then rounded back to a 32-bit result, does *not* give
   //      the same result when rounding to nearest!
@@ -349,19 +323,12 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   // The requirements can be shown fairly easily as well:
   // - Final Result = sign * (1.fffffffffffffffffffffffddddddddddddddddddddddddddddd * 2^exponent
   //                          + c * 2^(exponent - 52))
-<<<<<<< HEAD
-  // What we need is some form of discrepency occurs from rounding twice,
-  // such that moving `d` over to be part of `c` (and adjusting the exponent multiplied
-  // by the concatenated values)
-  // There are a few ways which this discrepency from rounding twice can be caused:
-=======
   // What we need is some form of discrepancy which occurs from rounding twice,
   // such that rounding from the perspective `d` just being in front of `c` (like in the actual
   // operation which only rounds once) will give a different result than rounding `d` then
   // rounding again to single precision.
   // There are a few ways which this discrepancy from rounding twice can be caused, with all
   // of them relating to rounding to nearest ties even:
->>>>>>> upstream/master
   // 1. Tying down to even because `c` is too small
   //    a. The highest bit of `d` is 1, the rest of the bits of `d` are 0 (this means it ties)
   //    b. The lowest bit of `f` is 0 (this means it ties to even downwards)
@@ -412,21 +379,6 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //     This can be implemented in the JIT just as easily, though.
   //     Eventually the JITs should hopefully support detecting back to back
   //     single-precision operations, which will lead to no overhead at all.
-<<<<<<< HEAD
-  //
-  // Currently it does not support:
-  // - Handling frC overflowing to an unreachable value
-  //   - This is simple enough to check for and handle properly, but the likelihood of it occuring
-  //     is so low that it's not worth it to check for it for the rare accuracy improvement.
-  // - Rounding only once for inputs with single precision mantissas but double precision exponents
-  //   - This one is also very simple again is not really something that would happen.
-  //     It's also the most likely one to occur, as paired single move operations similarly only
-  //     round the mantissa, not the exponent, and there are games which which do in fact
-  //     utilize this (for example, any games which use nw4r -- this includes Mario Kart Wii,
-  //     although no ghosts are known which desync on Dolphin because of this or even the
-  //     single -> double -> single precision FMA issue)
-  // - Rounding only once for inputs with double precision mantissas
-=======
   //     In the cases where JITs can't do this, an alternative method is used, as
   //     is done in the interpreter as well.
   // - Rounding only once for double precision inputs
@@ -443,7 +395,6 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //     to be a thing if you want a correct implementation for every possible inputs.
   //     If a case where this was necessary came up it'd just be more worth it to fall back to
   //     a software floating point implementation instead.
->>>>>>> upstream/master
   //
   // All of these can be resolved in a software float emulation method, or by using things such as
   // error-free float algorithms, but the nature of both of these lead to incredible speed costs,
@@ -454,40 +405,6 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
 
   // In double precision, just doing the normal operation will be exact with no issues.
   if (!single)
-<<<<<<< HEAD
-    result.value = std::fma(a, c, sub ? -b : b);
-  else
-  {
-    // For the single precision case, all we currently do is rounding frC properly,
-    // then check if the single precision case will work,
-    // and if it does, we perform a single precision fma instead.
-    const double c_round = Force25Bit(ppc_state.pc, c);
-
-    const float a_float = static_cast<float>(a);
-    const float b_float = static_cast<float>(b);
-    const float c_float = static_cast<float>(c_round);
-
-    if (DoublesSame(static_cast<double>(a_float), a) && DoublesSame(static_cast<double>(b_float), b) &&
-        DoublesSame(static_cast<double>(c_float), c_round))
-      result.value = static_cast<double>(std::fma(a_float, c_float, sub ? -b_float : b_float));
-    else
-    {
-      INFO_LOG_FMT(FLOAT, "({:#010x}) Performing 64-bit FM{}S/PS_M{} ({} * {} + {})",
-                           ppc_state.pc,
-                           sub ? "SUB" : "ADD",
-                           sub ? "SUB" : "ADD",
-                           a, c, b);
-
-      const u64 SINGLE_MANTISSA = 0x000000001fffffff;
-      const u64 a_bits = std::bit_cast<u64>(a);
-      const u64 b_bits = std::bit_cast<u64>(b);
-      const u64 c_bits = std::bit_cast<u64>(c_round);
-      if ((a_bits & SINGLE_MANTISSA) == 0 && (b_bits & SINGLE_MANTISSA) == 0 &&
-          (c_bits & SINGLE_MANTISSA) == 0)
-        INFO_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
-
-      result.value = std::fma(a, c_round, sub ? -b : b);
-=======
   {
     result.value = std::fma(a, c, sub ? -b : b);
   }
@@ -578,7 +495,6 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
         else
           result.value = std::bit_cast<double>(result_bits - 1);  // Tie is too large, round down.
       }
->>>>>>> upstream/master
     }
   }
 
