@@ -88,7 +88,7 @@ inline double ForceDouble(const UReg_FPSCR& fpscr, double d)
   return d;
 }
 
-inline double Force25Bit(double d)
+inline double Force25Bit(u32 pc, double d)
 {
   u64 integral = std::bit_cast<u64>(d);
 
@@ -117,10 +117,40 @@ inline double Force25Bit(double d)
   }
   else
   {
-    integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
+    const u64 new_integral = (integral & 0xFFFFFFFFF8000000ULL) + (integral & 0x8000000);
+
+    if (((new_integral & ~Common::DOUBLE_SIGN) == Common::DOUBLE_EXP) != ((integral & ~Common::DOUBLE_SIGN) == Common::DOUBLE_EXP))
+      INFO_LOG_FMT(FLOAT, "({:#010x}) C value {} rounded up to infinity", pc, d);
+
+    integral = new_integral;
   }
 
   return std::bit_cast<double>(integral);
+}
+
+// Ole Møller's 2Sum algorithm for error-free addition, only returning the "error"
+inline double TwoSumLower(double sum, double a, double b)
+{
+  // s  := a  + b
+  // a' := s  - b
+  // b' := s  - a'
+  // da := a  - a'
+  // db := b  - b'
+  // t  := da + db
+
+  const double a_prime = sum - b;
+  const double b_prime = sum - a_prime;
+  const double delta_a = a - a_prime;
+  const double delta_b = b - b_prime;
+  const double error = delta_a + delta_b;
+
+  return error;
+}
+
+// Extremely simple error-free multiplication, only returning the "error"
+inline double EFTMul(double mul, double a, double b)
+{
+  return std::fma(a, b, -mul);
 }
 
 // these functions allow globally modify operations behaviour
@@ -140,9 +170,16 @@ struct FPResult
   FPSCRExceptionFlag exception{};
 };
 
+template <bool single>
 inline FPResult NI_mul(PowerPC::PowerPCState& ppc_state, double a, double b)
 {
   FPResult result{a * b};
+
+  if (single && Common::IsEvenTie(result.value) && EFTMul(result.value, a, b) != 0.0) {
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Rounding tie in FMULS/PS_MUL! ({} * {})",
+                    ppc_state.pc,
+                    a, b);
+  }
 
   if (std::isnan(result.value))
   {
@@ -172,9 +209,17 @@ inline FPResult NI_mul(PowerPC::PowerPCState& ppc_state, double a, double b)
   return result;
 }
 
+template <bool single>
 inline FPResult NI_div(PowerPC::PowerPCState& ppc_state, double a, double b)
 {
   FPResult result{a / b};
+
+  if (single && Common::IsEvenTie(result.value)) {
+    // In theory there *could* be more to check, but it's unlikely.
+    INFO_LOG_FMT(FLOAT, "({:#010x}) a / b rounding tie in FDIVS/PS_DIV! ({} / {})",
+                    ppc_state.pc,
+                    a, b);
+  }
 
   if (std::isinf(result.value))
   {
@@ -214,9 +259,16 @@ inline FPResult NI_div(PowerPC::PowerPCState& ppc_state, double a, double b)
   return result;
 }
 
+template <bool single>
 inline FPResult NI_add(PowerPC::PowerPCState& ppc_state, double a, double b)
 {
   FPResult result{a + b};
+
+  if (single && Common::IsEvenTie(result.value) && TwoSumLower(result.value, a, b) != 0.0) {
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Rounding tie in FADDS/PS_ADD! ({} + {})",
+                    ppc_state.pc,
+                    a, b);
+  }
 
   if (std::isnan(result.value))
   {
@@ -247,9 +299,16 @@ inline FPResult NI_add(PowerPC::PowerPCState& ppc_state, double a, double b)
   return result;
 }
 
+template <bool single>
 inline FPResult NI_sub(PowerPC::PowerPCState& ppc_state, double a, double b)
 {
   FPResult result{a - b};
+
+  if (single && Common::IsEvenTie(result.value) && TwoSumLower(result.value, a, -b) != 0.0) {
+    INFO_LOG_FMT(FLOAT, "({:#010x}) Rounding tie in FSUBS/PS_SUB! ({} - {})",
+                    ppc_state.pc,
+                    a, b);
+  }
 
   if (std::isnan(result.value))
   {
@@ -415,27 +474,27 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
     // a float, we approximate (for single-precision-only inputs this will be exact) the
     // amount rounded by the FMA, and use that to manually fix which direction we round!
     // We of course still properly round `c` first, though.
-    const double c_round = Force25Bit(c);
+    const double c_round = Force25Bit(ppc_state.pc, c);
 
     // First, we compute the 64-bit FMA forwards
     const double b_sign = sub ? -b : b;
     result.value = std::fma(a, c_round, b_sign);
 
+    if (Common::IsEvenTie(b_sign) && a * c_round == 0.0 && a != 0.0 && c != 0.0) {
+      INFO_LOG_FMT(FLOAT, "({:#010x}) a * c_round floored to 0 in FM{}S/PS_M{}! ({} * {} + {})",
+                      ppc_state.pc,
+                      sub ? "SUB" : "ADD",
+                      sub ? "SUB" : "ADD",
+                      a, c, b);
+    }
+
     // We then check if we're currently tying in rounding directioh
-    const u64 result_bits = std::bit_cast<u64>(result.value);
-
-    // The mask of the `d` bits as shown in the above comments
-    const u64 D_MASK = 0x000000001fffffff;
-    // The mask of `d` which would force a tie to even, which is the only case where there
-    // can be potentially be differences compared to just casting to an f32 directly.
-    const u64 EVEN_TIE = 0x0000000010000000;
-
     // Because we check this entire mask which includes a 1 bit, we can be sure that
     // if this result passes, the input is not an infinity that would become a NaN.
     // This means that, for the JITs, if they only wanted to check for a subset of these
     // bits (e.g. only checking if the last one was 0), then using the zero flag for a branch,
     // they would have to check if the result was NaN before here.
-    if ((result_bits & D_MASK) == EVEN_TIE)
+    if (Common::IsEvenTie(result.value))
     {
       // Because we have a tie, we now compute any error in the FMA calculation
       // via an error-free transformation (Ole Møller's 2Sum algorithm)
@@ -489,6 +548,8 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
         // All this to say we don't check for `if (!std::isnan(error))` for the `else` statement.
         // Also note that we do not cast to a float here,
         // as individual instructions using this function will on their own afterwards.
+
+        const u64 result_bits = std::bit_cast<u64>(result.value);
 
         if ((error > 0.0) == (result.value > 0.0))
           result.value = std::bit_cast<double>(result_bits + 1);  // Tie is too small, round up.

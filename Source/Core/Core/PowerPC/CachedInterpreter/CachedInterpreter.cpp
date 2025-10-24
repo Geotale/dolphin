@@ -395,9 +395,7 @@ bool CachedInterpreter::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
             {interpreter, Interpreter::GetInterpreterOp(op.inst), js.compilerPC, op.inst},
             power_pc,
             js.downcountAmount};
-        Write(op.canEndBlock ? CallbackCast(InterpretAndCheckExceptions<true>) :
-                               CallbackCast(InterpretAndCheckExceptions<false>),
-              operands);
+        Write(CallbackCast(InterpretAndCheckExceptions<true>), operands);
       }
       else
       {

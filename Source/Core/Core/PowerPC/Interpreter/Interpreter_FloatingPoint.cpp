@@ -348,7 +348,7 @@ void Interpreter::fmulx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& c = ppc_state.ps[inst.FC];
 
-  const FPResult product = NI_mul(ppc_state, a.PS0AsDouble(), c.PS0AsDouble());
+  const FPResult product = NI_mul<false>(ppc_state, a.PS0AsDouble(), c.PS0AsDouble());
 
   if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
   {
@@ -370,7 +370,7 @@ void Interpreter::fmulsx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& c = ppc_state.ps[inst.FC];
 
   const double c_value = Force25Bit(ppc_state.pc, c.PS0AsDouble());
-  const FPResult product = NI_mul(ppc_state, a.PS0AsDouble(), c_value);
+  const FPResult product = NI_mul<true>(ppc_state, a.PS0AsDouble(), c_value);
 
   if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
   if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
@@ -438,7 +438,7 @@ void Interpreter::faddx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult sum = NI_add(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult sum = NI_add<false>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
 
   if (ppc_state.fpscr.VE == 0 || sum.HasNoInvalidExceptions())
   {
@@ -456,7 +456,7 @@ void Interpreter::faddsx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult sum = NI_add(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult sum = NI_add<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
 
   if (ppc_state.fpscr.VE == 0 || sum.HasNoInvalidExceptions())
   {
@@ -475,7 +475,7 @@ void Interpreter::fdivx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult quotient = NI_div(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult quotient = NI_div<false>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
   const bool not_divide_by_zero = ppc_state.fpscr.ZE == 0 || quotient.exception != FPSCR_ZX;
   const bool not_invalid = ppc_state.fpscr.VE == 0 || quotient.HasNoInvalidExceptions();
 
@@ -496,7 +496,7 @@ void Interpreter::fdivsx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult quotient = NI_div(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult quotient = NI_div<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
   const bool not_divide_by_zero = ppc_state.fpscr.ZE == 0 || quotient.exception != FPSCR_ZX;
   const bool not_invalid = ppc_state.fpscr.VE == 0 || quotient.HasNoInvalidExceptions();
 
@@ -521,7 +521,7 @@ void Interpreter::fresx(Interpreter& interpreter, UGeckoInstruction inst)
     const double result = Common::ApproximateReciprocal(value);
     const double result_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, value);
 
-    if (!DoublesSame(result_verify, result))
+    if (!Common::DoublesSame(result_verify, result))
     {
       INFO_LOG_FMT(FLOAT, "({:#010x}) FRES implementations do not agree!"
                           " 1.0 / {} -> {} vs verify {}",
@@ -748,7 +748,7 @@ void Interpreter::fsubx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult difference = NI_sub(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult difference = NI_sub<false>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
 
   if (ppc_state.fpscr.VE == 0 || difference.HasNoInvalidExceptions())
   {
@@ -767,7 +767,7 @@ void Interpreter::fsubsx(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& a = ppc_state.ps[inst.FA];
   const auto& b = ppc_state.ps[inst.FB];
 
-  const FPResult difference = NI_sub(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
+  const FPResult difference = NI_sub<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble());
 
   if (ppc_state.fpscr.VE == 0 || difference.HasNoInvalidExceptions())
   {

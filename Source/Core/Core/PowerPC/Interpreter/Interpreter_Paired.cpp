@@ -15,8 +15,29 @@
 // Returns if the argument is properly represented as a float
 inline bool IsFloat(const double d)
 {
-  float f = static_cast<float>(d);
-  return DoublesSame(static_cast<double>(f), d);
+  const u64 bits = std::bit_cast<u64>(d);
+
+  const u64 exp = (bits >> 52) & 0x7ff;
+  const u64 mantissa = bits & Common::DOUBLE_FRAC;
+
+  if (exp == 0x7ff) {
+    // All infinities and NaNs are fine
+    return true;
+  }
+  if (exp <= 873 || exp >= 1151) {
+    // Numbers which can't be represented to any capacity (other than 0)
+    return (bits & ~Common::DOUBLE_SIGN) == 0;
+  }
+
+  if (exp <= 896) {
+    // We need to check that there are fewer bits allowed...
+    // We can do this by simply shifting right the mantissa
+
+    return ((mantissa >> (896 - exp)) & Common::D_MASK) == 0;
+  } else {
+    // Just check all of bits!
+    return (mantissa & Common::D_MASK) == 0;
+  }
 }
 
 // These "binary instructions" do not alter FPSCR.
@@ -215,9 +236,9 @@ void Interpreter::ps_div(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& b = ppc_state.ps[inst.FB];
 
   const float ps0 =
-      ForceSingle(ppc_state.fpscr, NI_div(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_div<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
   const float ps1 =
-      ForceSingle(ppc_state.fpscr, NI_div(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_div<true>(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
@@ -259,9 +280,9 @@ void Interpreter::ps_res(Interpreter& interpreter, UGeckoInstruction inst)
   const double ps0_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, a);
   const double ps1_verify = Common::ApproximateReciprocalVerify(ppc_state.fpscr, b);
 
-  if (!DoublesSame(ps0_verify, ps0) || !DoublesSame(ps1_verify, ps1))
+  if (!Common::DoublesSame(ps0_verify, ps0) || !Common::DoublesSame(ps1_verify, ps1))
   {
-    INFO_LOG_FMT(FLOAT, "({#:010x}) PS_RES implementations do not agree!"
+    INFO_LOG_FMT(FLOAT, "({:#010x}) PS_RES implementations do not agree!"
                          " 1.0 / ({}, {}) -> ({}, {}) vs verify ({}, {})",
                          ppc_state.pc,
                          a, b,
@@ -325,9 +346,9 @@ void Interpreter::ps_sub(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& b = ppc_state.ps[inst.FB];
 
   const float ps0 =
-      ForceSingle(ppc_state.fpscr, NI_sub(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_sub<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
   const float ps1 =
-      ForceSingle(ppc_state.fpscr, NI_sub(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_sub<true>(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
@@ -343,9 +364,9 @@ void Interpreter::ps_add(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& b = ppc_state.ps[inst.FB];
 
   const float ps0 =
-      ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_add<true>(ppc_state, a.PS0AsDouble(), b.PS0AsDouble()).value);
   const float ps1 =
-      ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_add<true>(ppc_state, a.PS1AsDouble(), b.PS1AsDouble()).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
@@ -363,8 +384,8 @@ void Interpreter::ps_mul(Interpreter& interpreter, UGeckoInstruction inst)
   const double c0 = Force25Bit(ppc_state.pc, c.PS0AsDouble());
   const double c1 = Force25Bit(ppc_state.pc, c.PS1AsDouble());
 
-  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c0).value);
-  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c1).value);
+  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS0AsDouble(), c0).value);
+  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS1AsDouble(), c1).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
@@ -519,7 +540,7 @@ void Interpreter::ps_sum0(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& c = ppc_state.ps[inst.FC];
 
   const float ps0 =
-      ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_add<true>(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
   const float ps1 = ForceSingle(ppc_state.fpscr, c.PS1AsDouble());
 
   if (!IsFloat(c.PS1AsDouble()))
@@ -548,7 +569,7 @@ void Interpreter::ps_sum1(Interpreter& interpreter, UGeckoInstruction inst)
 
   const float ps0 = ForceSingle(ppc_state.fpscr, c.PS0AsDouble());
   const float ps1 =
-      ForceSingle(ppc_state.fpscr, NI_add(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
+      ForceSingle(ppc_state.fpscr, NI_add<true>(ppc_state, a.PS0AsDouble(), b.PS1AsDouble()).value);
 
   if (!IsFloat(c.PS0AsDouble()))
   {
@@ -573,8 +594,8 @@ void Interpreter::ps_muls0(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& c = ppc_state.ps[inst.FC];
 
   const double c0 = Force25Bit(ppc_state.pc, c.PS0AsDouble());
-  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c0).value);
-  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c0).value);
+  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS0AsDouble(), c0).value);
+  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS1AsDouble(), c0).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);
@@ -590,8 +611,8 @@ void Interpreter::ps_muls1(Interpreter& interpreter, UGeckoInstruction inst)
   const auto& c = ppc_state.ps[inst.FC];
 
   const double c1 = Force25Bit(ppc_state.pc, c.PS1AsDouble());
-  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS0AsDouble(), c1).value);
-  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul(ppc_state, a.PS1AsDouble(), c1).value);
+  const float ps0 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS0AsDouble(), c1).value);
+  const float ps1 = ForceSingle(ppc_state.fpscr, NI_mul<true>(ppc_state, a.PS1AsDouble(), c1).value);
 
   ppc_state.ps[inst.FD].SetBoth(ps0, ps1);
   ppc_state.UpdateFPRFSingle(ps0);

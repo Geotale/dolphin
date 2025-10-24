@@ -34,6 +34,16 @@ static constexpr u32 FLOAT_ZERO = 0x00000000;
 static constexpr int FLOAT_EXP_WIDTH = 8;
 static constexpr int FLOAT_FRAC_WIDTH = 23;
 
+// These constants need to be pulled out for more functions to use when debugging
+// potentially weird floating point issues
+
+// The mask of the `d` bits as mentioned in the comments in NI_madd_msub
+const u64 D_MASK = 0x000000001fffffff;
+// The mask of `d` which would force a tie to even, which is the only case where there
+// can be potentially be differences compared to just casting to an f32 directly.
+const u64 EVEN_TIE = 0x0000000010000000;
+
+
 inline bool IsQNAN(double d)
 {
   const u64 i = std::bit_cast<u64>(d);
@@ -69,11 +79,22 @@ inline double FlushToZero(double d)
   return std::bit_cast<double>(i);
 }
 
+inline bool DoublesSame(const double a, const double b)
+{
+  return std::bit_cast<u64>(a) == std::bit_cast<u64>(b);
+}
+
 inline double MakeQuiet(double d)
 {
   const u64 integral = std::bit_cast<u64>(d) | Common::DOUBLE_QBIT;
 
   return std::bit_cast<double>(integral);
+}
+
+inline bool IsEvenTie(double d)
+{
+  const u64 d_bits = std::bit_cast<u64>(d);
+  return (d_bits & D_MASK) == EVEN_TIE;
 }
 
 enum PPCFpClass
