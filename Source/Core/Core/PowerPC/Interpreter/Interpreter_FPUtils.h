@@ -127,6 +127,7 @@ inline double Force25Bit(u32 pc, double d)
   return std::bit_cast<double>(integral);
 }
 
+<<<<<<< HEAD
 inline bool DoublesSame(const double a, const double b)
 {
   return std::bit_cast<u64>(a) == std::bit_cast<u64>(b);
@@ -139,6 +140,8 @@ inline double MakeQuiet(double d)
   return std::bit_cast<double>(integral);
 }
 
+=======
+>>>>>>> upstream/master
 // these functions allow globally modify operations behaviour
 // also, these may be used to set flags like FR, FI, OX, UX
 
@@ -171,12 +174,12 @@ inline FPResult NI_mul(PowerPC::PowerPCState& ppc_state, double a, double b)
 
     if (std::isnan(a))
     {
-      result.value = MakeQuiet(a);
+      result.value = Common::MakeQuiet(a);
       return result;
     }
     if (std::isnan(b))
     {
-      result.value = MakeQuiet(b);
+      result.value = Common::MakeQuiet(b);
       return result;
     }
 
@@ -209,12 +212,12 @@ inline FPResult NI_div(PowerPC::PowerPCState& ppc_state, double a, double b)
 
     if (std::isnan(a))
     {
-      result.value = MakeQuiet(a);
+      result.value = Common::MakeQuiet(a);
       return result;
     }
     if (std::isnan(b))
     {
-      result.value = MakeQuiet(b);
+      result.value = Common::MakeQuiet(b);
       return result;
     }
 
@@ -243,12 +246,12 @@ inline FPResult NI_add(PowerPC::PowerPCState& ppc_state, double a, double b)
 
     if (std::isnan(a))
     {
-      result.value = MakeQuiet(a);
+      result.value = Common::MakeQuiet(a);
       return result;
     }
     if (std::isnan(b))
     {
-      result.value = MakeQuiet(b);
+      result.value = Common::MakeQuiet(b);
       return result;
     }
 
@@ -276,12 +279,12 @@ inline FPResult NI_sub(PowerPC::PowerPCState& ppc_state, double a, double b)
 
     if (std::isnan(a))
     {
-      result.value = MakeQuiet(a);
+      result.value = Common::MakeQuiet(a);
       return result;
     }
     if (std::isnan(b))
     {
-      result.value = MakeQuiet(b);
+      result.value = Common::MakeQuiet(b);
       return result;
     }
 
@@ -318,10 +321,18 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //    double precision floats.
   // 4. CPUs, unsurprisingly, don't tend to support 64-bit float inputs to an operation with a
   //    32-bit result.
+<<<<<<< HEAD
   //    One quirk of PowerPC is that instead of just not caring about the 32-bit precision
   //    mantissas, it includes them and *only rounds once* to 32-bit. This means that you can have
   //    double precision inputs that round differently than if you do a double precision FMA then
   //    round the result to 32-bit.
+=======
+  //    One quirk of PowerPC is that instead of just not caring about handling the precision
+  //    in the registers of the operands of single precision instructions, it instead
+  //    takes into account that extra precision and *only rounds once* to 32-bit.
+  //    This means that you can have double precision inputs such that the result rounds
+  //    differently than if you did a double precision FMA and rounded the result to 32-bit.
+>>>>>>> upstream/master
   //    - What makes FMA so special here is that it's the only basic operation which, upon being
   //      converted to a 64-bit operation then rounded back to a 32-bit result, does *not* give
   //      the same result when rounding to nearest!
@@ -338,10 +349,19 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   // The requirements can be shown fairly easily as well:
   // - Final Result = sign * (1.fffffffffffffffffffffffddddddddddddddddddddddddddddd * 2^exponent
   //                          + c * 2^(exponent - 52))
+<<<<<<< HEAD
   // What we need is some form of discrepency occurs from rounding twice,
   // such that moving `d` over to be part of `c` (and adjusting the exponent multiplied
   // by the concatenated values)
   // There are a few ways which this discrepency from rounding twice can be caused:
+=======
+  // What we need is some form of discrepancy which occurs from rounding twice,
+  // such that rounding from the perspective `d` just being in front of `c` (like in the actual
+  // operation which only rounds once) will give a different result than rounding `d` then
+  // rounding again to single precision.
+  // There are a few ways which this discrepancy from rounding twice can be caused, with all
+  // of them relating to rounding to nearest ties even:
+>>>>>>> upstream/master
   // 1. Tying down to even because `c` is too small
   //    a. The highest bit of `d` is 1, the rest of the bits of `d` are 0 (this means it ties)
   //    b. The lowest bit of `f` is 0 (this means it ties to even downwards)
@@ -392,6 +412,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //     This can be implemented in the JIT just as easily, though.
   //     Eventually the JITs should hopefully support detecting back to back
   //     single-precision operations, which will lead to no overhead at all.
+<<<<<<< HEAD
   //
   // Currently it does not support:
   // - Handling frC overflowing to an unreachable value
@@ -405,6 +426,24 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
   //     although no ghosts are known which desync on Dolphin because of this or even the
   //     single -> double -> single precision FMA issue)
   // - Rounding only once for inputs with double precision mantissas
+=======
+  //     In the cases where JITs can't do this, an alternative method is used, as
+  //     is done in the interpreter as well.
+  // - Rounding only once for double precision inputs
+  //   - This is a side effect of how we handle single-precision inputs: By doing
+  //     error calculations rather than checking if every input is a float, we ensure that we know
+  //     at the very least the rounding direction that was taken and that would need to be taken.
+  //
+  // Currently it does not support:
+  // - Handling frC overflowing to an unreachable value
+  //   - This is simple enough to check for and handle properly, but the likelihood of it occurring
+  //     is so low that it's not worth it to check for it for the rare accuracy improvement.
+  // - Dealing with every 64-bit subnormal possibility correctly
+  //   - Double precision subnormals are what cause requiring more precision than double precision
+  //     to be a thing if you want a correct implementation for every possible inputs.
+  //     If a case where this was necessary came up it'd just be more worth it to fall back to
+  //     a software floating point implementation instead.
+>>>>>>> upstream/master
   //
   // All of these can be resolved in a software float emulation method, or by using things such as
   // error-free float algorithms, but the nature of both of these lead to incredible speed costs,
@@ -415,6 +454,7 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
 
   // In double precision, just doing the normal operation will be exact with no issues.
   if (!single)
+<<<<<<< HEAD
     result.value = std::fma(a, c, sub ? -b : b);
   else
   {
@@ -447,6 +487,98 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
         INFO_LOG_FMT(FLOAT, "(^ This is occuring because one of the inputs was flushed to 0 when casted to a float)");
 
       result.value = std::fma(a, c_round, sub ? -b : b);
+=======
+  {
+    result.value = std::fma(a, c, sub ? -b : b);
+  }
+  else
+  {
+    // For single precision inputs, we never actually cast to a float -- we instead compute the
+    // result using a 64-bit FMA, and if the bits end up being an even tie when converting to
+    // a float, we approximate (for single-precision-only inputs this will be exact) the
+    // amount rounded by the FMA, and use that to manually fix which direction we round!
+    // We of course still properly round `c` first, though.
+    const double c_round = Force25Bit(c);
+
+    // First, we compute the 64-bit FMA forwards
+    const double b_sign = sub ? -b : b;
+    result.value = std::fma(a, c_round, b_sign);
+
+    // We then check if we're currently tying in rounding directioh
+    const u64 result_bits = std::bit_cast<u64>(result.value);
+
+    // The mask of the `d` bits as shown in the above comments
+    const u64 D_MASK = 0x000000001fffffff;
+    // The mask of `d` which would force a tie to even, which is the only case where there
+    // can be potentially be differences compared to just casting to an f32 directly.
+    const u64 EVEN_TIE = 0x0000000010000000;
+
+    // Because we check this entire mask which includes a 1 bit, we can be sure that
+    // if this result passes, the input is not an infinity that would become a NaN.
+    // This means that, for the JITs, if they only wanted to check for a subset of these
+    // bits (e.g. only checking if the last one was 0), then using the zero flag for a branch,
+    // they would have to check if the result was NaN before here.
+    if ((result_bits & D_MASK) == EVEN_TIE)
+    {
+      // Because we have a tie, we now compute any error in the FMA calculation
+      // via an error-free transformation (Ole Møller's 2Sum algorithm)
+      // s  := a  + b
+      // a' := s  - b
+      // b' := s  - a'
+      // da := a  - a'
+      // db := b  - b'
+      // t  := da + db
+      // But for these calculations, we assume "a" := a * c_round, allowing the usage of FMA,
+      // both being shorter and allowing for likely necessary increased precision!
+      // We also switch up the signs a bit so we don't introduce an instruction simply to
+      // negate one of the operands of an FMA
+      const double a_prime = b_sign - result.value;
+      const double b_prime = result.value + a_prime;
+      const double delta_a = std::fma(a, c_round, a_prime);
+      const double delta_b = b_sign - b_prime;
+      const double error = delta_a + delta_b;
+
+      // `error` will properly match the direction for rounding *even for 64-bit inputs*.
+      // Thoroughly proving that this works for even all normal values isn't entirely trivial,
+      // nor are the exact details really important, but the basic logic is:
+      // result.value = roundf64(a * c_round + b_sign) = a * c_round + b_sign - e0
+      // a_prime = roundf64(b_sign - a * c_round - b_sign + e0)
+      //         = -a * c_round + e0 - e1
+      // b_prime = roundf64(a * c_round + b_sign - e0 - a * c_round + e0 - e1)
+      //         = b_sign - e1 - e2
+      // delta_a = roundf64(a * c_round - a * c_round + e0 - e1)
+      //         = e0 - e1 - e3
+      // delta_b = roundf64(b_sign - b_sign + e1 + e2)
+      //         = e1 + e2 - e4
+      // error   = roundf64(delta_a + delta_b)
+      //         = roundf64(e0 + e2 - e3 - e4)
+      // Then showing that e2 - e3 - e4 is tiny enough to not change the sign of
+      // e0 (the true error value, as `error` can't capture all of the possible precision),
+      // including that if the true e0 = 0 then e1 = e2 = e3 = e4 = error = 0.
+
+      // This "error" value represents the number such that `result.value - error == exact_result`.
+      if (error != 0.0)
+      {
+        // Because the error is nonzero here, we actually do need to round a specific direction
+        // and don't want to just tie to even!
+
+        // Note that it should never be possible for the error to be NaN if the result isn't either
+        // infinite or NaN itself. It would require:
+        // da == inf, db == -inf
+        // Which expanded out is:
+        // a - ((a + b) - b) == inf, b - ((a + b) - ((a + b) - b)) == -inf, where
+        // a + b isn't infinite. This means (a + b) - b must be infinite on the left,
+        // but this will end up giving the right hand side the same sign of infinity.
+        // All this to say we don't check for `if (!std::isnan(error))` for the `else` statement.
+        // Also note that we do not cast to a float here,
+        // as individual instructions using this function will on their own afterwards.
+
+        if ((error > 0.0) == (result.value > 0.0))
+          result.value = std::bit_cast<double>(result_bits + 1);  // Tie is too small, round up.
+        else
+          result.value = std::bit_cast<double>(result_bits - 1);  // Tie is too large, round down.
+      }
+>>>>>>> upstream/master
     }
   }
 
@@ -459,17 +591,17 @@ inline FPResult NI_madd_msub(PowerPC::PowerPCState& ppc_state, double a, double 
 
     if (std::isnan(a))
     {
-      result.value = MakeQuiet(a);
+      result.value = Common::MakeQuiet(a);
       return result;
     }
     if (std::isnan(b))
     {
-      result.value = MakeQuiet(b);  // !
+      result.value = Common::MakeQuiet(b);  // !
       return result;
     }
     if (std::isnan(c))
     {
-      result.value = MakeQuiet(c);
+      result.value = Common::MakeQuiet(c);
       return result;
     }
 

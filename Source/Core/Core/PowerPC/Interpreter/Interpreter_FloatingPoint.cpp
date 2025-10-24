@@ -373,6 +373,7 @@ void Interpreter::fmulsx(Interpreter& interpreter, UGeckoInstruction inst)
   const FPResult product = NI_mul(ppc_state, a.PS0AsDouble(), c_value);
 
   if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
+  if (ppc_state.fpscr.VE == 0 || product.HasNoInvalidExceptions())
   {
     const float result = ForceSingle(ppc_state.fpscr, product.value);
 
